@@ -84,8 +84,10 @@ def example_compaction_df():
 
 def blank_compaction_df():
     return pd.DataFrame({
-        "Trial": [1, 2, 3], "Mould + soil (g)": [None, None, None],
-        "Empty mould (g)": [None, None, None], "Moisture (%)": [None, None, None],
+        "Trial": pd.array([1, 2, 3], dtype="Int64"),
+        "Mould + soil (g)": pd.array([None, None, None], dtype="Float64"),
+        "Empty mould (g)": pd.array([None, None, None], dtype="Float64"),
+        "Moisture (%)": pd.array([None, None, None], dtype="Float64"),
     })
 
 
@@ -98,7 +100,10 @@ def example_penetration_df():
 
 def blank_penetration_df():
     pen = [0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 7.5, 10.0, 12.5]
-    return pd.DataFrame({"Penetration (mm)": pen, "Reading": [None] * len(pen)})
+    return pd.DataFrame({
+        "Penetration (mm)": pd.array(pen, dtype="Float64"),
+        "Reading": pd.array([None] * len(pen), dtype="Float64"),
+    })
 
 
 def init_state():
@@ -207,7 +212,16 @@ st.caption("Dry density is fitted against moisture content with a least-squares 
 comp_df = st.data_editor(
     st.session_state.compaction_df, num_rows="dynamic", use_container_width=True,
     key=f"compaction_editor_{st.session_state.data_version}",
+    column_config={
+        "Trial": st.column_config.NumberColumn("Trial", format="%d", step=1),
+        "Mould + soil (g)": st.column_config.NumberColumn("Mould + soil (g)", format="%.1f"),
+        "Empty mould (g)": st.column_config.NumberColumn("Empty mould (g)", format="%.1f"),
+        "Moisture (%)": st.column_config.NumberColumn("Moisture (%)", format="%.2f"),
+    },
 )
+# Force numeric dtypes even after row adds/pastes leave a column as `object`.
+for col in ["Trial", "Mould + soil (g)", "Empty mould (g)", "Moisture (%)"]:
+    comp_df[col] = pd.to_numeric(comp_df[col], errors="coerce")
 st.session_state.compaction_df = comp_df
 
 comp_calc = comp_df.copy()
@@ -269,8 +283,17 @@ with lm2:
 
 pen_label = "Load (kN)" if st.session_state.load_mode == "Direct load (kN)" else "Dial reading (division)"
 pen_df = st.session_state.penetration_df.rename(columns={"Reading": pen_label})
-pen_df = st.data_editor(pen_df, num_rows="dynamic", use_container_width=True,
-                         key=f"penetration_editor_{st.session_state.data_version}")
+pen_df = st.data_editor(
+    pen_df, num_rows="dynamic", use_container_width=True,
+    key=f"penetration_editor_{st.session_state.data_version}",
+    column_config={
+        "Penetration (mm)": st.column_config.NumberColumn("Penetration (mm)", format="%.2f"),
+        pen_label: st.column_config.NumberColumn(pen_label, format="%.3f"),
+    },
+)
+# Force numeric dtypes even after row adds/pastes leave a column as `object`.
+pen_df["Penetration (mm)"] = pd.to_numeric(pen_df["Penetration (mm)"], errors="coerce")
+pen_df[pen_label] = pd.to_numeric(pen_df[pen_label], errors="coerce")
 pen_df = pen_df.rename(columns={pen_label: "Reading"})
 st.session_state.penetration_df = pen_df
 
