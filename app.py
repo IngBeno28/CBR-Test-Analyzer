@@ -14,6 +14,7 @@ Deploy:        push this folder to a GitHub repo and connect it on
 """
 
 from datetime import date
+from html import escape as _esc
 
 import numpy as np
 import pandas as pd
@@ -36,27 +37,120 @@ INK_SOFT = "#57645C"
 GOOD = "#2F6B3D"
 WARN = "#A6331F"
 LINE = "#D6DCD3"
-PALETTE = [BRASS, GRAPHITE, "#6E8F5C", "#A6331F", "#5C6E8F", "#8F5C6E"]
+OLIVE = "#6E8F5C"
+SLATE = "#5C6E8F"
+PALETTE = [BRASS, GRAPHITE, OLIVE, "#A6331F", SLATE, "#8F5C6E"]
+
+# The 4 lab stages, in order, with the accent color and in-page anchor id used
+# by both the header's jump-to-section strip and each stage's section head.
+STAGES = [
+    ("1", "Compaction", "stage-1", BRASS),
+    ("2", "CBR Compaction", "stage-2", GRAPHITE),
+    ("3", "Penetration", "stage-3", OLIVE),
+    ("4", "Design CBR", "stage-4", SLATE),
+]
 
 st.set_page_config(page_title="CBR Test Analyzer", page_icon="📐", layout="wide")
 
 st.markdown(
     f"""
     <style>
-      .stMetric {{ background: #FFFFFF; border: 1px solid {LINE}; border-radius: 4px;
-                   padding: 0.6rem 0.8rem; }}
+      .stMetric {{ background: #FFFFFF; border: 1px solid {LINE}; border-radius: 10px;
+                   padding: 0.7rem 0.9rem; box-shadow: 0 1px 3px rgba(27,35,30,0.06); }}
       div[data-testid="stMetricLabel"] {{ font-size: 0.72rem; text-transform: uppercase;
                    letter-spacing: .06em; color: {INK_SOFT}; }}
       div[data-testid="stMetricValue"] {{ color: {INK}; }}
       h1, h2, h3 {{ color: {INK}; }}
-      .cbr-eyebrow {{ font-family: monospace; font-size: 0.75rem; letter-spacing: .1em;
-                      text-transform: uppercase; color: {INK_SOFT}; margin-bottom: -0.3rem;}}
-      .cbr-banner {{ border: 1px dashed #B7C0B3; border-radius: 4px; padding: .5rem .8rem;
-                     font-size: .85rem; color: {INK_SOFT}; }}
+      div[data-testid="stDataFrame"] {{ border: 1px solid {LINE}; border-radius: 10px;
+                   overflow: hidden; }}
+
+      /* ---- Hero header ---- */
+      .cbr-hero-wrap {{ padding-bottom: 2px; }}
+      .cbr-hero-row {{ display: flex; align-items: center; gap: 18px; }}
+      .cbr-hero-icon {{
+          flex: 0 0 auto; width: 64px; height: 64px; border-radius: 16px;
+          background: linear-gradient(135deg, {BRASS} 0%, {GRAPHITE} 100%);
+          display: flex; align-items: center; justify-content: center;
+          font-size: 2rem; box-shadow: 0 4px 10px rgba(27,35,30,0.18);
+      }}
+      .cbr-hero-eyebrow {{ font-family: monospace; font-size: 0.72rem; letter-spacing: .12em;
+                      text-transform: uppercase; color: {INK_SOFT}; margin: 0 0 2px 0; }}
+      .cbr-hero-title {{ font-size: 2rem; font-weight: 800; color: {INK}; margin: 0; line-height: 1.15; }}
+      .cbr-hero-subtitle {{ color: {INK_SOFT}; font-size: 0.95rem; margin: 4px 0 0 0; max-width: 640px; }}
+      .cbr-hero-rule {{
+          height: 4px; width: 100%; margin: 14px 0 12px 0; border-radius: 3px;
+          background: linear-gradient(90deg, {BRASS} 0%, {GRAPHITE} 55%, {OLIVE} 100%);
+      }}
+
+      /* ---- Jump-to-section stage strip ---- */
+      .cbr-stage-strip {{ display: flex; flex-wrap: wrap; gap: 10px; margin: 2px 0 4px 0; }}
+      .cbr-stage-chip {{
+          display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+          background: #FFFFFF; border: 1px solid {LINE}; border-radius: 999px;
+          padding: 5px 14px 5px 6px; font-size: 0.82rem; color: {INK}; font-weight: 600;
+      }}
+      .cbr-stage-num {{
+          width: 20px; height: 20px; border-radius: 50%; color: #FFFFFF; font-size: 0.7rem;
+          display: flex; align-items: center; justify-content: center; font-weight: 700;
+      }}
+
+      .cbr-banner {{
+          display: inline-flex; align-items: center; gap: 8px; border: 1px dashed #B7C0B3;
+          border-radius: 999px; padding: .4rem 1rem; font-size: .85rem; color: {INK_SOFT};
+          background: #FFFFFF;
+      }}
+
+      /* ---- Section heads (numbered stage chip, or a neutral icon chip) ---- */
+      .cbr-section-head {{ display: flex; align-items: center; gap: 10px; margin: 4px 0 2px 0; }}
+      .cbr-section-chip {{
+          width: 30px; height: 30px; min-width: 30px; border-radius: 9px; color: #FFFFFF;
+          display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.95rem;
+      }}
+      .cbr-section-icon {{
+          width: 30px; height: 30px; min-width: 30px; border-radius: 9px; background: #EEF1EB;
+          display: flex; align-items: center; justify-content: center; font-size: 1.05rem;
+      }}
+      .cbr-section-title {{ font-size: 1.35rem; font-weight: 700; color: {INK}; margin: 0; }}
+
+      /* ---- Per-specimen input card label (stage 3) ---- */
+      .cbr-specimen-badge {{
+          display: inline-flex; align-items: center; gap: 8px; font-weight: 700; color: {INK};
+          font-size: 1.05rem; margin: 2px 0 6px 0;
+      }}
+      .cbr-specimen-num {{
+          width: 26px; height: 26px; border-radius: 50%; color: #FFFFFF;
+          display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700;
+      }}
     </style>
     """,
     unsafe_allow_html=True,
 )
+
+# Shared modern chart chrome (facecolor, title, grid, legend, spines) so every
+# matplotlib chart below looks consistent without repeating the styling calls
+# in each chart block. Purely cosmetic -- no effect on any computed value.
+plt.rcParams.update({
+    "font.size": 9,
+    "axes.edgecolor": INK_SOFT,
+    "axes.labelcolor": INK,
+    "xtick.color": INK_SOFT,
+    "ytick.color": INK_SOFT,
+})
+
+
+def _style_chart(fig, ax, title, legend_fontsize=8):
+    fig.patch.set_facecolor("#FFFFFF")
+    ax.set_facecolor("#FCFBF7")
+    if title:
+        ax.set_title(title, fontsize=11, fontweight="bold", color=INK, loc="left", pad=10)
+    ax.grid(color=LINE, linewidth=0.6)
+    handles, _ = ax.get_legend_handles_labels()
+    if handles:
+        ax.legend(fontsize=legend_fontsize, frameon=False)
+    for spine in ("top", "right"):
+        ax.spines[spine].set_visible(False)
+    for spine in ("left", "bottom"):
+        ax.spines[spine].set_color(INK_SOFT)
 
 PEN_DEPTHS = [0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5]
 
@@ -230,13 +324,27 @@ dv = st.session_state.data_version  # bump this to force-reset all keyed widgets
 
 hcol1, hcol2 = st.columns([3, 1])
 with hcol1:
-    st.markdown('<p class="cbr-eyebrow">BS 1377-4:1990 · Cl.7 · Compaction &amp; CBR laboratory report</p>',
-                unsafe_allow_html=True)
-    st.title("📐 CBR Test Analyzer")
+    st.markdown(
+        """
+        <div class="cbr-hero-wrap">
+          <div class="cbr-hero-row">
+            <div class="cbr-hero-icon">📐</div>
+            <div>
+              <p class="cbr-hero-eyebrow">BS 1377-4:1990 · Cl.7 · Compaction &amp; CBR laboratory report</p>
+              <p class="cbr-hero-title">CBR Test Analyzer</p>
+              <p class="cbr-hero-subtitle">Compaction through design CBR in one guided workflow — enter lab
+              readings, get fitted curves, governing CBR per specimen, and a branded PDF report.</p>
+            </div>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 with hcol2:
     st.write("")
+    st.write("")
     b1, b2 = st.columns(2)
-    if b1.button("New blank test", use_container_width=True):
+    if b1.button("New blank test", width='stretch'):
         st.session_state.is_example = False
         st.session_state.data_version += 1
         st.session_state.project = blank_project()
@@ -253,7 +361,7 @@ with hcol2:
         st.session_state.mdd_override = None
         st.session_state.target_mc_override = None
         st.rerun()
-    if b2.button("Load example", use_container_width=True):
+    if b2.button("Load example", width='stretch'):
         st.session_state.is_example = True
         st.session_state.data_version += 1
         st.session_state.project = example_project()
@@ -272,10 +380,22 @@ with hcol2:
         st.session_state.target_mc_override = None
         st.rerun()
 
+st.markdown(
+    '<div class="cbr-stage-strip">'
+    + "".join(
+        f'<a class="cbr-stage-chip" href="#{anchor}">'
+        f'<span class="cbr-stage-num" style="background:{color};">{num}</span>{name}</a>'
+        for num, name, anchor, color in STAGES
+    )
+    + "</div>",
+    unsafe_allow_html=True,
+)
+st.markdown('<div class="cbr-hero-rule"></div>', unsafe_allow_html=True)
+
 if st.session_state.is_example:
     st.markdown(
-        '<p class="cbr-banner">Showing example data modelled on a real project template — edit any field below, '
-        'or click "New blank test" to start your own.</p>', unsafe_allow_html=True)
+        '<p class="cbr-banner">📁 Showing example data modelled on a real project template — edit any field '
+        'below, or click "New blank test" to start your own.</p>', unsafe_allow_html=True)
 
 readout = st.container()
 st.divider()
@@ -284,7 +404,11 @@ st.divider()
 # Project header (shared across all 4 stages)
 # ---------------------------------------------------------------------------
 
-st.header("Project & sample")
+st.markdown(
+    '<div class="cbr-section-head"><span class="cbr-section-icon">🗂️</span>'
+    '<span class="cbr-section-title">Project &amp; sample</span></div>',
+    unsafe_allow_html=True,
+)
 p = st.session_state.project
 c1, c2, c3 = st.columns(3)
 with c1:
@@ -385,11 +509,15 @@ st.divider()
 
 # --- Stage 1: general compaction -> OMC / MDD ------------------------------
 
-st.header("1 · Compaction (Proctor)")
+st.markdown(
+    f'<div class="cbr-section-head" id="stage-1"><span class="cbr-section-chip" '
+    f'style="background:{BRASS};">1</span><span class="cbr-section-title">Compaction (Proctor)</span></div>',
+    unsafe_allow_html=True,
+)
 st.caption("Standard Proctor compaction: each trial is a fresh sample compacted at a different moisture "
            "content. Dry density is fitted against moisture content to locate OMC and MDD.")
 comp_df = st.data_editor(
-    st.session_state.comp_df, num_rows="dynamic", use_container_width=True,
+    st.session_state.comp_df, num_rows="dynamic", width='stretch',
     key=f"comp_editor_{dv}",
     column_config={
         "Trial": st.column_config.NumberColumn("Trial", format="%d", step=1),
@@ -419,7 +547,7 @@ comp_calc["Dry density (kg/m3)"] = [dry_density_from_wet(w, m) for w, m in
 
 st.dataframe(
     comp_calc[["Trial", "Moisture (%)", "Wet density (kg/m3)", "Dry density (kg/m3)"]].round(2),
-    use_container_width=True, hide_index=True,
+    width='stretch', hide_index=True,
 )
 
 fit = None
@@ -442,16 +570,18 @@ elif len(usable) < 3:
 else:
     st.warning("Points do not show a clear peak — check moisture/density values, or add trials either side of the optimum.")
 ax_comp.set_xlabel("Moisture content (%)"); ax_comp.set_ylabel("Dry density (kg/m³)")
-ax_comp.grid(color=LINE, linewidth=0.6); ax_comp.legend(fontsize=8, frameon=False)
-for spine in ["top", "right"]:
-    ax_comp.spines[spine].set_visible(False)
-st.pyplot(fig_comp, use_container_width=True)
+_style_chart(fig_comp, ax_comp, "Compaction curve")
+st.pyplot(fig_comp, width='stretch')
 
 st.divider()
 
 # --- Stage 2: CBR compaction (multiple compactive efforts) ----------------
 
-st.header("2 · CBR compaction")
+st.markdown(
+    f'<div class="cbr-section-head" id="stage-2"><span class="cbr-section-chip" '
+    f'style="background:{GRAPHITE};">2</span><span class="cbr-section-title">CBR Compaction</span></div>',
+    unsafe_allow_html=True,
+)
 st.caption("Specimens compacted at the optimum moisture content using different compactive efforts, to span "
            "a range of densities for the Design CBR curve in stage 4.")
 
@@ -487,7 +617,7 @@ else:
 cbr_comp_seed = st.session_state.cbr_comp_df.copy()
 cbr_comp_seed["Specimen"] = labels
 cbr_comp_df = st.data_editor(
-    cbr_comp_seed, num_rows="fixed", use_container_width=True,
+    cbr_comp_seed, num_rows="fixed", width='stretch',
     key=f"cbr_comp_editor_{dv}_{specimen_version}",
     column_config={
         "Specimen": st.column_config.TextColumn("Specimen", disabled=True),
@@ -517,7 +647,7 @@ cbr_comp_calc["Relative compaction (%)"] = [relative_compaction_pct(d, mdd) for 
 
 st.dataframe(
     cbr_comp_calc[["Specimen", "Moisture (%)", "Dry density (kg/m3)", "Relative compaction (%)"]].round(2),
-    use_container_width=True, hide_index=True,
+    width='stretch', hide_index=True,
 )
 st.session_state["cbr_comp_calc_cache"] = cbr_comp_calc
 
@@ -525,7 +655,11 @@ st.divider()
 
 # --- Stage 3: penetration testing, per specimen ----------------------------
 
-st.header("3 · Penetration testing")
+st.markdown(
+    f'<div class="cbr-section-head" id="stage-3"><span class="cbr-section-chip" '
+    f'style="background:{OLIVE};">3</span><span class="cbr-section-title">Penetration Testing</span></div>',
+    unsafe_allow_html=True,
+)
 st.caption(f"Default standard loads: {p['std_load_2_5']:.3f} kN @ 2.5 mm and {p['std_load_5_0']:.3f} kN @ 5.0 mm, "
            f"on a {PLUNGER_AREA_MM2} mm² plunger. Governing CBR = MAX(CBR@2.5mm, CBR@5.0mm).")
 st.session_state.apply_correction = st.checkbox(
@@ -535,7 +669,11 @@ st.session_state.apply_correction = st.checkbox(
 cbr_results = {}
 figs_pen = {}
 for i, lbl in enumerate(labels):
-    st.markdown(f"#### Specimen: {lbl}")
+    st.markdown(
+        f'<div class="cbr-specimen-badge"><span class="cbr-specimen-num" '
+        f'style="background:{PALETTE[i % len(PALETTE)]};">{i + 1}</span>Specimen: {_esc(str(lbl))}</div>',
+        unsafe_allow_html=True,
+    )
     with st.container(border=True):
         lm1, lm2 = st.columns([2, 1])
         with lm1:
@@ -552,7 +690,7 @@ for i, lbl in enumerate(labels):
 
         col_label = "Load (kN)" if st.session_state.load_modes[lbl] == "Direct load (kN)" else "Dial reading (division)"
         seed = st.session_state.pen_dfs.get(lbl, blank_pen_df()).rename(columns={"Load (kN)": col_label})
-        df = st.data_editor(seed, num_rows="dynamic", use_container_width=True,
+        df = st.data_editor(seed, num_rows="dynamic", width='stretch',
                              key=f"pen_editor_{lbl}_{dv}_{specimen_version}",
                              column_config={
                                  "Penetration (mm)": st.column_config.NumberColumn("Penetration (mm)", format="%.2f"),
@@ -618,10 +756,8 @@ for i, lbl in enumerate(labels):
             if markers_x:
                 ax.scatter(markers_x, markers_y, color=GRAPHITE, edgecolor="white", s=70, zorder=5, label="2.5 / 5.0 mm")
         ax.set_xlabel("Penetration (mm)"); ax.set_ylabel("Load (kN)")
-        ax.grid(color=LINE, linewidth=0.6); ax.legend(fontsize=7.5, frameon=False)
-        for spine in ["top", "right"]:
-            ax.spines[spine].set_visible(False)
-        st.pyplot(fig, use_container_width=True)
+        _style_chart(fig, ax, f"Load–penetration — {lbl}", legend_fontsize=7.5)
+        st.pyplot(fig, width='stretch')
         figs_pen[lbl] = fig
 
         if p["condition"].startswith("Soaked"):
@@ -647,7 +783,11 @@ st.divider()
 
 # --- Stage 4: Design CBR summary -------------------------------------------
 
-st.header("4 · Design CBR")
+st.markdown(
+    f'<div class="cbr-section-head" id="stage-4"><span class="cbr-section-chip" '
+    f'style="background:{SLATE};">4</span><span class="cbr-section-title">Design CBR</span></div>',
+    unsafe_allow_html=True,
+)
 st.caption("CBR vs relative compaction across the tested specimens, fitted with a smooth curve and read off "
            "at target compaction levels — replaces manually reading values off a plotted chart.")
 
@@ -665,7 +805,7 @@ for lbl in labels:
     cbr_val = res.selected_cbr if res else None
     summary_rows.append({"Specimen": lbl, "Relative compaction (%)": rel, "CBR (%)": cbr_val})
 summary_df = pd.DataFrame(summary_rows)
-st.dataframe(summary_df.round(2), use_container_width=True, hide_index=True)
+st.dataframe(summary_df.round(2), width='stretch', hide_index=True)
 
 usable_pts = summary_df.dropna(subset=["Relative compaction (%)", "CBR (%)"])
 design_fit = None
@@ -690,7 +830,7 @@ else:
         design_rows.append({"Target (% MDD)": t, "Design CBR (%)": val,
                              "Note": "extrapolated beyond tested range" if extrap else ""})
     design_df = pd.DataFrame(design_rows)
-    st.dataframe(design_df.round(2), use_container_width=True, hide_index=True)
+    st.dataframe(design_df.round(2), width='stretch', hide_index=True)
     st.session_state["design_df_cache"] = design_df
 
     fig_design, ax_d = plt.subplots(figsize=(7, 3.4))
@@ -705,10 +845,8 @@ else:
     for t, v in zip(targets, target_vals):
         ax_d.annotate(f"{t:.0f}%→{v:.1f}%", (t, v), textcoords="offset points", xytext=(4, 4), fontsize=7.5)
     ax_d.set_xlabel("Relative compaction (% MDD)"); ax_d.set_ylabel("CBR (%)")
-    ax_d.grid(color=LINE, linewidth=0.6); ax_d.legend(fontsize=8, frameon=False)
-    for spine in ["top", "right"]:
-        ax_d.spines[spine].set_visible(False)
-    st.pyplot(fig_design, use_container_width=True)
+    _style_chart(fig_design, ax_d, "Design CBR vs. relative compaction")
+    st.pyplot(fig_design, width='stretch')
     st.session_state["fig_design_cache"] = fig_design
 
 # ---------------------------------------------------------------------------
@@ -740,7 +878,11 @@ st.divider()
 # PDF report
 # ---------------------------------------------------------------------------
 
-st.header("Report")
+st.markdown(
+    '<div class="cbr-section-head"><span class="cbr-section-icon">📄</span>'
+    '<span class="cbr-section-title">Report</span></div>',
+    unsafe_allow_html=True,
+)
 st.caption("This tool assists calculation and curve fitting; results should still be reviewed by a qualified "
            "geotechnical engineer before use in pavement design.")
 
