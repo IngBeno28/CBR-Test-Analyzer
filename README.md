@@ -16,26 +16,6 @@ laboratory reporting. It walks through the full CBR workflow in four stages:
 
 Plus a downloadable PDF lab report covering all four stages.
 
-The four stages are laid out as one continuous scrolling page with numbered
-section headers, rather than `st.tabs()` panels or `st.expander()` boxes —
-both of those Streamlit widgets have long-standing, widely-reported bugs
-where they snap back to their default state (first tab / collapsed) on every
-rerun, i.e. every time any field anywhere on the page is edited. For a
-data-entry-heavy form that makes every entry feel like it "took a step
-backward" — scroll up, re-navigate, click back into the next field. A plain
-scrolling page has no such navigation state to lose, so it can't exhibit
-that bug at all.
-
-Every editable table (`st.data_editor`) also avoids a separate, well-documented
-Streamlit bug: feeding the editor's own just-returned dataframe back in as the
-next render's seed under an unchanged `key` makes edits lag by one rerun — you'd
-have to type a value twice before it stuck. Each editor is instead seeded from a
-value that stays frozen except on an explicit reset or a specimen-count/label
-change (both of which also mint a fresh widget key, so the remount is clean),
-while a separate, never-fed-back "`_live`" mirror in `st.session_state` tracks
-the latest edits for anything else that needs to read them (preserving entered
-data across a resize, the summary readout, the PDF report).
-
 ## Files
 
 | File | Purpose |
