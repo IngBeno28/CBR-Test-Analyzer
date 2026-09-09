@@ -891,6 +891,7 @@ pdf_bytes = build_pdf_report(
     cbr_comp_calc=st.session_state.get("cbr_comp_calc_cache"),
     cbr_results=st.session_state.get("cbr_results_cache", {}), figs_pen=figs_pen,
     design_df=st.session_state.get("design_df_cache"), fig_design=st.session_state.get("fig_design_cache"),
+    swell=st.session_state.get("swell"),
 )
 st.download_button("⬇ Download PDF report", data=pdf_bytes,
                     file_name=f"CBR_report_{p['test_code'] or 'test'}.pdf".replace(" ", "_").replace("/", "-"),
